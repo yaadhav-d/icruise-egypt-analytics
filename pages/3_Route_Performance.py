@@ -17,8 +17,6 @@ cruises = data["cruises"]
 routes = data["routes"]
 
 # ==================== NORMALIZE IDS (CRITICAL FIX) ====================
-# Bookings usually have numeric IDs, updated masters have C1 / R1 style IDs
-
 if "cruise_id" in bookings.columns and "cruise_id" in cruises.columns:
     bookings["cruise_id"] = bookings["cruise_id"].astype(str)
     cruises["cruise_id"] = cruises["cruise_id"].astype(str).str.replace("C", "", regex=False)
@@ -50,7 +48,6 @@ else:
 
 # ==================== APPLY FILTER ====================
 filtered = bookings[bookings["booking_date"] >= start_date].copy()
-
 filtered = filtered.merge(cruises, on="cruise_id", how="left")
 filtered = filtered.merge(routes, on="route_id", how="left")
 
@@ -88,12 +85,19 @@ st.divider()
 # ==================== SECTION 2: CRUISE OCCUPANCY ====================
 st.subheader("🛳️ Cruise Capacity Utilization")
 
+# ---- SAFE GROUP BY (ADAPTIVE TO DATASET) ----
+base_dims = ["cruise_name", "total_seats"]
+optional_dims = []
+
+for col in ["cruise_type", "duration_nights"]:
+    if col in filtered.columns:
+        optional_dims.append(col)
+
+group_cols = base_dims + optional_dims
+
 cruise_perf = (
     filtered
-    .groupby(
-        ["cruise_name", "cruise_type", "duration_nights", "total_seats"],
-        as_index=False
-    )
+    .groupby(group_cols, as_index=False)
     .agg(
         Seats_Booked=("seats_booked", "sum"),
         Revenue=("total_booking_value", "sum"),
