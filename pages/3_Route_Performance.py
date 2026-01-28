@@ -16,18 +16,23 @@ bookings = data["bookings"]
 cruises = data["cruises"]
 routes = data["routes"]
 
+# ==================== NORMALIZE IDS (CRITICAL FIX) ====================
+# Bookings usually have numeric IDs, updated masters have C1 / R1 style IDs
+
+if "cruise_id" in bookings.columns and "cruise_id" in cruises.columns:
+    bookings["cruise_id"] = bookings["cruise_id"].astype(str)
+    cruises["cruise_id"] = cruises["cruise_id"].astype(str).str.replace("C", "", regex=False)
+
+if "route_id" in bookings.columns and "route_id" in routes.columns:
+    bookings["route_id"] = bookings["route_id"].astype(str)
+    routes["route_id"] = routes["route_id"].astype(str).str.replace("R", "", regex=False)
+
 # ==================== FILTERS ====================
 st.sidebar.header("Filters")
 
 date_option = st.sidebar.selectbox(
     "Choose a date range",
-    [
-        "Past 7 Days",
-        "Past 30 Days",
-        "Past 3 Months",
-        "Past 6 Months",
-        "All Time"
-    ]
+    ["Past 7 Days", "Past 30 Days", "Past 3 Months", "Past 6 Months", "All Time"]
 )
 
 latest_date = bookings["booking_date"].max()
@@ -46,53 +51,14 @@ else:
 # ==================== APPLY FILTER ====================
 filtered = bookings[bookings["booking_date"] >= start_date].copy()
 
-# ==================== SAFE MERGE: CRUISES ====================
-BOOKING_CRUISE_KEYS = ["cruise_id", "cruise_code"]
-CRUISE_KEYS = ["cruise_id", "cruise_code"]
-
-booking_key = next((k for k in BOOKING_CRUISE_KEYS if k in filtered.columns), None)
-cruise_key = next((k for k in CRUISE_KEYS if k in cruises.columns), None)
-
-if booking_key is None or cruise_key is None:
-    st.error("Cruise key mismatch between bookings and cruises.")
-    st.stop()
-
-filtered[booking_key] = filtered[booking_key].astype(str)
-cruises[cruise_key] = cruises[cruise_key].astype(str)
-
-filtered = filtered.merge(
-    cruises,
-    left_on=booking_key,
-    right_on=cruise_key,
-    how="left"
-)
-
-# ==================== SAFE MERGE: ROUTES ====================
-BOOKING_ROUTE_KEYS = ["route_id", "route_code"]
-ROUTE_KEYS = ["route_id", "route_code"]
-
-booking_route_key = next((k for k in BOOKING_ROUTE_KEYS if k in filtered.columns), None)
-route_key = next((k for k in ROUTE_KEYS if k in routes.columns), None)
-
-if booking_route_key is None or route_key is None:
-    st.error("Route key mismatch between bookings and routes.")
-    st.stop()
-
-filtered[booking_route_key] = filtered[booking_route_key].astype(str)
-routes[route_key] = routes[route_key].astype(str)
-
-filtered = filtered.merge(
-    routes,
-    left_on=booking_route_key,
-    right_on=route_key,
-    how="left"
-)
+filtered = filtered.merge(cruises, on="cruise_id", how="left")
+filtered = filtered.merge(routes, on="route_id", how="left")
 
 # ==================== ROUTE LABEL ====================
 if "origin" in filtered.columns and "destination" in filtered.columns:
     filtered["Route"] = filtered["origin"] + " → " + filtered["destination"]
 else:
-    filtered["Route"] = filtered.get("route_name", "Unknown Route")
+    filtered["Route"] = filtered["route_name"]
 
 # ==================== SECTION 1: ROUTE REVENUE ====================
 st.subheader("🗺️ Revenue by Route (Origin → Destination)")
@@ -155,7 +121,7 @@ fig_occupancy = px.bar(
 st.plotly_chart(fig_occupancy, use_container_width=True)
 st.divider()
 
-# ==================== SECTION 3: UNDERPERFORMING ====================
+# ==================== SECTION 3: UNDERPERFORMING CRUISES ====================
 st.subheader("⚠️ Underperforming Cruises — Action Required")
 
 underperforming = cruise_perf[
@@ -173,7 +139,7 @@ else:
         })
     )
 
-# ==================== INSIGHT ====================
+# ==================== STRATEGIC INSIGHT ====================
 st.info(
     """
 💡 **Why this matters**
