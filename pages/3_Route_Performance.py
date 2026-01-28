@@ -6,17 +6,17 @@ from data.data_loader import load_data
 
 st.title("🚢 Route & Cruise Performance")
 st.caption(
-    "Evaluate route demand, capacity utilization, and cruise-level efficiency "
-    "to support scheduling, pricing, and promotion decisions."
+    "Evaluate route demand and cruise efficiency using real iCruiseEgypt itineraries "
+    "and cruise durations."
 )
 
-# -------------------- LOAD DATA --------------------
+# ==================== LOAD DATA ====================
 data = load_data()
 bookings = data["bookings"]
 cruises = data["cruises"]
 routes = data["routes"]
 
-# -------------------- FILTERS --------------------
+# ==================== FILTERS ====================
 st.sidebar.header("Filters")
 
 date_option = st.sidebar.selectbox(
@@ -43,17 +43,22 @@ elif date_option == "Past 6 Months":
 else:
     start_date = bookings["booking_date"].min()
 
-# -------------------- APPLY FILTER --------------------
+# ==================== APPLY FILTER ====================
 filtered = bookings[bookings["booking_date"] >= start_date].copy()
 filtered = filtered.merge(cruises, on="cruise_id", how="left")
 filtered = filtered.merge(routes, on="route_id", how="left")
 
+# Create readable route label
+filtered["Route"] = (
+    filtered["origin"] + " → " + filtered["destination"]
+)
+
 # ==================== SECTION 1: ROUTE REVENUE ====================
-st.subheader("🗺️ Route Revenue Concentration")
+st.subheader("🗺️ Revenue by Route (Origin → Destination)")
 
 route_revenue = (
     filtered
-    .groupby("route_name", as_index=False)
+    .groupby("Route", as_index=False)
     .agg(
         Revenue=("total_booking_value", "sum"),
         Bookings=("booking_id", "count")
@@ -63,28 +68,31 @@ route_revenue = (
 fig_route = px.bar(
     route_revenue.sort_values("Revenue"),
     x="Revenue",
-    y="route_name",
+    y="Route",
     orientation="h",
     color="Revenue",
     color_continuous_scale="Blues",
-    title="Revenue Contribution by Route"
+    title="Revenue Contribution by Real Cruise Routes"
 )
 
 st.plotly_chart(fig_route, use_container_width=True)
 
 st.caption(
-    "ℹ️ Routes with consistently low revenue contribution may require reduced frequency, "
-    "pricing review, or targeted promotions."
+    "ℹ️ Routes with consistently low revenue may require reduced frequency, "
+    "pricing adjustments, or targeted promotions."
 )
 
 st.divider()
 
 # ==================== SECTION 2: CRUISE OCCUPANCY ====================
-st.subheader("🛳️ Capacity Utilization by Cruise")
+st.subheader("🛳️ Cruise Capacity Utilization")
 
 cruise_perf = (
     filtered
-    .groupby(["cruise_id", "cruise_name", "total_seats"], as_index=False)
+    .groupby(
+        ["cruise_id", "cruise_name", "cruise_type", "duration_nights", "total_seats"],
+        as_index=False
+    )
     .agg(
         Seats_Booked=("seats_booked", "sum"),
         Revenue=("total_booking_value", "sum"),
@@ -106,14 +114,20 @@ fig_occupancy = px.bar(
     orientation="h",
     color="Occupancy %",
     color_continuous_scale="Teal",
-    title="Cruise Occupancy — Capacity Utilization Efficiency"
+    title="Cruise Occupancy (Capacity Utilization)"
 )
 
 st.plotly_chart(fig_occupancy, use_container_width=True)
+
+st.caption(
+    "ℹ️ Occupancy is evaluated relative to cruise duration "
+    "(e.g., 3–4 night vs 12–14 night cruises)."
+)
+
 st.divider()
 
 # ==================== SECTION 3: REVENUE vs UTILIZATION ====================
-st.subheader("📊 Revenue vs Capacity Utilization (Decision View)")
+st.subheader("📊 Revenue with Utilization Context")
 
 fig_perf = px.bar(
     cruise_perf.sort_values("Revenue"),
@@ -122,7 +136,7 @@ fig_perf = px.bar(
     orientation="h",
     color="Occupancy %",
     color_continuous_scale="Teal",
-    title="Cruise Revenue with Capacity Utilization Context"
+    title="Revenue by Cruise (Color = Occupancy %)"
 )
 
 st.plotly_chart(fig_perf, use_container_width=True)
@@ -141,7 +155,14 @@ if underperforming.empty:
 else:
     st.dataframe(
         underperforming[
-            ["cruise_name", "Occupancy %", "Revenue", "Seats_Booked"]
+            [
+                "cruise_name",
+                "cruise_type",
+                "duration_nights",
+                "Occupancy %",
+                "Revenue",
+                "Seats_Booked"
+            ]
         ].style.format({
             "Occupancy %": "{:.1f}%",
             "Revenue": "₹ {:,.0f}"
@@ -153,10 +174,10 @@ st.info(
     """
 💡 **Why this matters**
 
-- Low occupancy indicates inefficient capacity usage  
-- Low revenue despite active sailings suggests pricing or demand mismatch  
-- These cruises may require schedule changes, pricing optimization, or route reassessment  
+- Route performance reflects real geographic demand (Aswan, Luxor, Cairo)  
+- Cruise duration impacts occupancy and pricing expectations  
+- Low occupancy + low revenue signals inefficient capacity allocation  
 
-This view supports **capacity planning, route optimization, and promotion strategy decisions**.
+This page supports **route optimization, cruise scheduling, and pricing decisions**.
 """
 )
