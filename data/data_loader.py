@@ -13,15 +13,21 @@ def load_data():
         except Exception:
             return None
 
-    # Prefer updated masters if available
-    cruises = safe_read("Cruises_Updated") or safe_read("Cruises_Master")
-    routes = safe_read("Routes_Updated") or safe_read("Routes_Master")
+    # ---------- Load cruise master ----------
+    cruises_updated = safe_read("Cruises_Updated")
+    cruises_master = safe_read("Cruises_Master")
+    cruises = cruises_updated if cruises_updated is not None else cruises_master
+
+    # ---------- Load route master ----------
+    routes_updated = safe_read("Routes_Updated")
+    routes_master = safe_read("Routes_Master")
+    routes = routes_updated if routes_updated is not None else routes_master
 
     partners = safe_read("Partners_Master")
     customers = safe_read("Customers")
     bookings = safe_read("Bookings")
     cancellations = safe_read("Cancellations")
-    stops = safe_read("Excursion_Stops")  # optional, future-ready
+    stops = safe_read("Excursion_Stops")
 
     # ---------- Date conversions ----------
     if bookings is not None:
