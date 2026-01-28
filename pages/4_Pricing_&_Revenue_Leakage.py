@@ -5,7 +5,7 @@ from datetime import timedelta
 from data.data_loader import load_data
 
 st.title("💰 Pricing, Discounts & Revenue Leakage")
-st.caption("Understand pricing power, discount impact, and revenue efficiency.")
+st.caption("Evaluate pricing efficiency, discount dependency, and revenue quality.")
 
 # ==================== LOAD DATA ====================
 data = load_data()
@@ -58,8 +58,10 @@ pricing_perf["Revenue per Seat"] = (
     pricing_perf["Revenue"] / pricing_perf["Seats_Booked"]
 )
 
-# ==================== SECTION 1: REVENUE PER SEAT ====================
-st.subheader("📊 Revenue Efficiency by Cruise")
+median_rps = pricing_perf["Revenue per Seat"].median()
+
+# ==================== SECTION 1: PRICING EFFICIENCY ====================
+st.subheader("📊 Pricing Efficiency (Revenue per Seat)")
 
 fig_rps = px.bar(
     pricing_perf.sort_values("Revenue per Seat"),
@@ -68,14 +70,19 @@ fig_rps = px.bar(
     orientation="h",
     color="Revenue per Seat",
     color_continuous_scale="Blues",
-    title="Revenue per Seat (Pricing Power)"
+    title="Revenue per Seat — Indicator of Pricing Power"
 )
 
 st.plotly_chart(fig_rps, use_container_width=True)
+
+st.caption(
+    "ℹ️ Cruises below the median revenue per seat indicate weak pricing efficiency or excessive discounting."
+)
+
 st.divider()
 
 # ==================== SECTION 2: GROSS REVENUE ====================
-st.subheader("💵 Gross Revenue by Cruise")
+st.subheader("💵 Gross Revenue Contribution")
 
 fig_gross = px.bar(
     pricing_perf.sort_values("Revenue"),
@@ -84,18 +91,18 @@ fig_gross = px.bar(
     orientation="h",
     color="Revenue",
     color_continuous_scale="Teal",
-    title="Gross Revenue by Cruise"
+    title="Total Revenue by Cruise"
 )
 
 st.plotly_chart(fig_gross, use_container_width=True)
 st.divider()
 
-# ==================== SECTION 3: DISCOUNT ANALYSIS (ADAPTIVE) ====================
+# ==================== SECTION 3: DISCOUNT ANALYSIS ====================
 DISCOUNT_COLUMNS = ["discount_amount", "discount_percent", "discount_value"]
 discount_col = next((c for c in DISCOUNT_COLUMNS if c in filtered.columns), None)
 
 if discount_col:
-    st.subheader("🏷️ Discount Impact Analysis")
+    st.subheader("🏷️ Discount Dependency Risk")
 
     discount_df = (
         filtered
@@ -114,44 +121,39 @@ if discount_col:
         orientation="h",
         color="Discount_Total",
         color_continuous_scale="Reds",
-        title="Total Discounts Given by Cruise"
+        title="Total Discounts Applied by Cruise"
     )
 
     st.plotly_chart(fig_discount, use_container_width=True)
+
+    st.caption(
+        "⚠️ High discount dependency may increase bookings but reduce net revenue quality."
+    )
+
     st.divider()
-
-    st.subheader("⚠️ Over-Discounted Cruises")
-
-    over_discounted = discount_df[
-        discount_df["Discount_Total"] > discount_df["Discount_Total"].median()
-    ]
-
-    st.dataframe(over_discounted)
 
 else:
     st.info(
         """
 ℹ️ **Discount data not available**
 
-- Discount-based insights are hidden  
-- Showing pricing efficiency and revenue performance only  
+Discount-based risk analysis is hidden.
+Pricing efficiency and revenue quality insights are still shown.
 """
     )
 
-st.divider()
+# ==================== SECTION 4: LOW PRICING EFFICIENCY (ACTION REQUIRED) ====================
+st.subheader("🚨 Low Pricing Efficiency — Action Required")
 
-# ==================== SECTION 4: REVENUE LEAKAGE ====================
-st.subheader("🚨 Revenue Leakage (Low Yield Cruises)")
-
-leakage = pricing_perf[
-    pricing_perf["Revenue per Seat"] < pricing_perf["Revenue per Seat"].median()
+low_efficiency = pricing_perf[
+    pricing_perf["Revenue per Seat"] < median_rps
 ].sort_values("Revenue per Seat")
 
-if leakage.empty:
-    st.success("No major revenue leakage detected 🎉")
+if low_efficiency.empty:
+    st.success("No pricing efficiency risks detected 🎉")
 else:
     st.dataframe(
-        leakage[
+        low_efficiency[
             ["cruise_name", "Revenue", "Seats_Booked", "Revenue per Seat"]
         ].style.format({
             "Revenue": "₹ {:,.0f}",
@@ -159,14 +161,15 @@ else:
         })
     )
 
-# ==================== INSIGHT PANEL ====================
+# ==================== STRATEGIC INSIGHT ====================
 st.info(
     """
-💡 **How to use this page**
+💡 **Why this matters**
 
-- Identify cruises with strong pricing power  
-- Reduce discount dependency where revenue per seat is healthy  
-- Investigate low revenue-per-seat cruises for leakage  
-- Optimize pricing before increasing marketing spend  
+- Revenue per seat reflects true pricing efficiency, not just volume  
+- Excessive discounting can hide weak demand or poor pricing strategy  
+- Improving pricing efficiency often delivers higher returns than increasing marketing spend  
+
+This view supports **pricing optimization, discount control, and revenue quality improvement**.
 """
 )
