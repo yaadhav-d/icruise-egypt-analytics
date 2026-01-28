@@ -7,18 +7,34 @@ def load_data():
     BASE_DIR = Path(__file__).resolve().parent
     file_path = BASE_DIR / "iCruiseEgypt_Sample_Data.xlsx"
 
-    cruises = pd.read_excel(file_path, sheet_name="Cruises_Master")
-    routes = pd.read_excel(file_path, sheet_name="Routes_Master")
-    partners = pd.read_excel(file_path, sheet_name="Partners_Master")
-    customers = pd.read_excel(file_path, sheet_name="Customers")
-    bookings = pd.read_excel(file_path, sheet_name="Bookings")
-    cancellations = pd.read_excel(file_path, sheet_name="Cancellations")
+    def safe_read(sheet_name):
+        try:
+            return pd.read_excel(file_path, sheet_name=sheet_name)
+        except Exception:
+            return None
 
-    # Date conversions
-    bookings["booking_date"] = pd.to_datetime(bookings["booking_date"])
-    bookings["cruise_date"] = pd.to_datetime(bookings["cruise_date"])
-    customers["first_booking_date"] = pd.to_datetime(customers["first_booking_date"])
-    cancellations["cancellation_date"] = pd.to_datetime(cancellations["cancellation_date"])
+    # Prefer updated masters if available
+    cruises = safe_read("Cruises_Updated") or safe_read("Cruises_Master")
+    routes = safe_read("Routes_Updated") or safe_read("Routes_Master")
+
+    partners = safe_read("Partners_Master")
+    customers = safe_read("Customers")
+    bookings = safe_read("Bookings")
+    cancellations = safe_read("Cancellations")
+    stops = safe_read("Excursion_Stops")  # optional, future-ready
+
+    # ---------- Date conversions ----------
+    if bookings is not None:
+        if "booking_date" in bookings.columns:
+            bookings["booking_date"] = pd.to_datetime(bookings["booking_date"])
+        if "cruise_date" in bookings.columns:
+            bookings["cruise_date"] = pd.to_datetime(bookings["cruise_date"])
+
+    if customers is not None and "first_booking_date" in customers.columns:
+        customers["first_booking_date"] = pd.to_datetime(customers["first_booking_date"])
+
+    if cancellations is not None and "cancellation_date" in cancellations.columns:
+        cancellations["cancellation_date"] = pd.to_datetime(cancellations["cancellation_date"])
 
     return {
         "cruises": cruises,
@@ -27,4 +43,5 @@ def load_data():
         "customers": customers,
         "bookings": bookings,
         "cancellations": cancellations,
+        "stops": stops,
     }
