@@ -48,10 +48,11 @@ filtered = bookings[bookings["booking_date"] >= start_date].copy()
 filtered = filtered.merge(cruises, on="cruise_id", how="left")
 filtered = filtered.merge(routes, on="route_id", how="left")
 
-# Create readable route label
-filtered["Route"] = (
-    filtered["origin"] + " → " + filtered["destination"]
-)
+# Create readable route label (safe for old & new datasets)
+if "origin" in filtered.columns and "destination" in filtered.columns:
+    filtered["Route"] = filtered["origin"] + " → " + filtered["destination"]
+else:
+    filtered["Route"] = filtered["route_name"]
 
 # ==================== SECTION 1: ROUTE REVENUE ====================
 st.subheader("🗺️ Revenue by Route (Origin → Destination)")
