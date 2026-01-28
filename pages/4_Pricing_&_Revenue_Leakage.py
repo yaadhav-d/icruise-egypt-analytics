@@ -12,6 +12,10 @@ data = load_data()
 bookings = data["bookings"]
 cruises = data["cruises"]
 
+# ==================== NORMALIZE CRUISE ID (CRITICAL FIX) ====================
+bookings["cruise_id"] = bookings["cruise_id"].astype(str)
+cruises["cruise_id"] = cruises["cruise_id"].astype(str).str.replace("C", "", regex=False)
+
 # ==================== FILTERS ====================
 st.sidebar.header("Filters")
 
@@ -142,7 +146,7 @@ Pricing efficiency and revenue quality insights are still shown.
 """
     )
 
-# ==================== SECTION 4: LOW PRICING EFFICIENCY (ACTION REQUIRED) ====================
+# ==================== SECTION 4: LOW PRICING EFFICIENCY ====================
 st.subheader("🚨 Low Pricing Efficiency — Action Required")
 
 low_efficiency = pricing_perf[
