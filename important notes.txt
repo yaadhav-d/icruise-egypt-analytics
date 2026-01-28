@@ -1,0 +1,250 @@
+iCruiseEgypt Dashboard
+Page-wise Data Mapping (Final Blueprint)
+
+This answers three things for every page:
+
+What question this page answers
+
+What exactly we show
+
+Which sheet + columns are used
+
+🟦 PAGE 1: Executive Overview (Business Health)
+Business Question
+
+“Is my cruise business doing well right now?”
+
+KPIs Shown
+
+Total Revenue
+
+Occupancy %
+
+Cancellation Rate
+
+Average Revenue per Cruise
+
+Booking Trend (MTD / YTD)
+
+Data Used
+
+Sheets
+
+Bookings
+
+Cruises_Master
+
+Cancellations
+
+Key Columns
+
+Bookings: total_booking_value, seats_booked, cruise_id, booking_status, booking_date
+
+Cruises_Master: cruise_id, total_seats
+
+Cancellations: booking_id
+
+Core Calculations
+
+Revenue = sum(total_booking_value)
+
+Occupancy % = seats booked ÷ total seats
+
+Cancellation Rate = cancelled bookings ÷ total bookings
+
+🟦 PAGE 2: Booking & Demand Insights
+Business Question
+
+“Who is booking, from where, and when?”
+
+Insights Shown
+
+Booking trend over time
+
+Early vs late bookings
+
+Channel split (Direct / OTA / Agent)
+
+Device split (Mobile / Desktop)
+
+Domestic vs International demand
+
+Data Used
+
+Sheets
+
+Bookings
+
+Customers
+
+Key Columns
+
+Bookings: booking_date, cruise_date, booking_channel, device_type
+
+Customers: country, city, customer_type
+
+Core Calculations
+
+Lead time = cruise_date − booking_date
+
+Booking volume by channel/device/location
+
+🟦 PAGE 3: Route & Cruise Performance
+Business Question
+
+“Which cruises and routes are performing well — and which are not?”
+
+Insights Shown
+
+Revenue by route
+
+Occupancy by cruise
+
+Revenue vs capacity comparison
+
+Low-occupancy cruise identification
+
+Data Used
+
+Sheets
+
+Bookings
+
+Routes_Master
+
+Cruises_Master
+
+Key Columns
+
+Bookings: route_id, cruise_id, seats_booked, total_booking_value
+
+Routes_Master: route_id, route_name, seasonality_tag
+
+Cruises_Master: cruise_id, total_seats, operating_cost
+
+Core Calculations
+
+Route revenue
+
+Cruise occupancy %
+
+Revenue per sailing
+
+Cost vs revenue signals
+
+🟦 PAGE 4: Pricing, Discounts & Loss Control
+Business Question
+
+“Where are we losing money unnecessarily?”
+
+Insights Shown
+
+Discount impact on revenue
+
+Refund trends
+
+Cancellation reasons
+
+Margin pressure indicators
+
+Data Used
+
+Sheets
+
+Bookings
+
+Cancellations
+
+Partners_Master
+
+Key Columns
+
+Bookings: discount_amount, price_per_seat, booking_status
+
+Cancellations: refund_amount, cancellation_reason
+
+Partners_Master: commission_percent
+
+Core Calculations
+
+Total discounts given
+
+Net revenue after discounts
+
+Refund loss
+
+High-discount / low-return detection
+
+🟦 PAGE 5: Partner / OTA Scorecard
+Business Question
+
+“Which partners bring quality business?”
+
+Insights Shown
+
+Revenue by partner
+
+Cancellation rate by partner
+
+Partner quality ranking
+
+Commission vs value comparison
+
+Data Used
+
+Sheets
+
+Bookings
+
+Partners_Master
+
+Cancellations
+
+Key Columns
+
+Bookings: partner_id, total_booking_value, booking_status
+
+Partners_Master: partner_name, partner_type, commission_percent
+
+Cancellations: booking_id
+
+Core Calculations
+
+Partner contribution %
+
+Partner cancellation rate
+
+Net value after commission
+
+🟦 PAGE 6: Forecast & Planning
+Business Question
+
+“What is likely to happen next if we do nothing?”
+
+Insights Shown
+
+Booking forecast (next 30 / 60 / 90 days)
+
+Expected occupancy
+
+Demand trend direction
+
+Data Used
+
+Sheets
+
+Bookings
+
+Key Columns
+
+booking_date
+
+total_booking_value
+
+seats_booked
+
+Core Calculations
+
+Time-series forecasting
+
+Trend slope & confidence bands
