@@ -67,8 +67,19 @@ partner_perf["Cancellation Rate %"] = (
     partner_perf["Cancellations"] / partner_perf["Bookings"] * 100
 )
 
+# ==================== DEFINE RISK LOGIC ====================
+cancel_median = partner_perf["Cancellation Rate %"].median()
+revenue_median = partner_perf["Revenue"].median()
+
+partner_perf["Risk Category"] = partner_perf.apply(
+    lambda x: "High Risk"
+    if (x["Cancellation Rate %"] > cancel_median and x["Revenue"] < revenue_median)
+    else "Stable",
+    axis=1
+)
+
 # ==================== SECTION 1: REVENUE BY PARTNER ====================
-st.subheader("💰 Revenue by Partner / OTA")
+st.subheader("💰 Revenue Contribution by Partner / OTA")
 
 fig_revenue = px.bar(
     partner_perf.sort_values("Revenue"),
@@ -98,7 +109,7 @@ st.plotly_chart(fig_share, use_container_width=True)
 st.divider()
 
 # ==================== SECTION 3: PARTNER CANCELLATION RISK ====================
-st.subheader("🚫 Partners with Frequent Cancellations")
+st.subheader("🚫 Cancellation Risk by Partner")
 
 fig_cancel = px.bar(
     partner_perf.sort_values("Cancellation Rate %"),
@@ -107,38 +118,39 @@ fig_cancel = px.bar(
     orientation="h",
     color="Cancellation Rate %",
     color_continuous_scale="Reds",
-    title="Cancellation Rate by Partner"
+    title="Partners with Frequent Cancellations"
 )
 
 st.plotly_chart(fig_cancel, use_container_width=True)
 st.divider()
 
-# ==================== SECTION 4: UNDERPERFORMING PARTNERS ====================
-st.subheader("⚠️ Underperforming Partners")
+# ==================== SECTION 4: HIGH-RISK PARTNERS ====================
+st.subheader("⚠️ High-Risk Partners (Action Required)")
 
-underperforming = partner_perf[
-    (partner_perf["Cancellation Rate %"] > partner_perf["Cancellation Rate %"].median()) &
-    (partner_perf["Revenue"] < partner_perf["Revenue"].median())
-].sort_values("Cancellation Rate %", ascending=False)
+high_risk = partner_perf[partner_perf["Risk Category"] == "High Risk"] \
+    .sort_values("Cancellation Rate %", ascending=False)
 
-if underperforming.empty:
-    st.success("No major partner performance risks detected 🎉")
+if high_risk.empty:
+    st.success("No high-risk partners detected for this period 🎉")
 else:
     st.dataframe(
-        underperforming.style.format({
+        high_risk[
+            [partner_col, "Revenue", "Bookings", "Cancellation Rate %", "Risk Category"]
+        ].style.format({
             "Revenue": "₹ {:,.0f}",
             "Cancellation Rate %": "{:.1f}%"
         })
     )
 
-# ==================== INSIGHT PANEL ====================
+# ==================== STRATEGIC INSIGHT ====================
 st.info(
     """
-💡 **How to use this page**
+💡 **Why this matters**
 
-- Review partners with high cancellation rates  
-- Reduce dependency if one OTA dominates bookings  
-- Renegotiate terms with high-risk partners  
-- Promote direct or low-cancellation channels  
+- High cancellation partners may inflate booking volume but reduce net revenue  
+- Heavy dependency on a single OTA increases operational risk  
+- These risks are typically **not visible in customer-facing booking platforms**  
+
+This view supports **partner renegotiation, promotion control, and channel strategy decisions**.
 """
 )
