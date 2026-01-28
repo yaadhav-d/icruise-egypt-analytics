@@ -5,7 +5,10 @@ from datetime import timedelta
 from data.data_loader import load_data
 
 st.title("🚢 Route & Cruise Performance")
-st.caption("Identify high-performing routes and underperforming cruises.")
+st.caption(
+    "Evaluate route demand, capacity utilization, and cruise-level efficiency "
+    "to support scheduling, pricing, and promotion decisions."
+)
 
 # -------------------- LOAD DATA --------------------
 data = load_data()
@@ -42,12 +45,11 @@ else:
 
 # -------------------- APPLY FILTER --------------------
 filtered = bookings[bookings["booking_date"] >= start_date].copy()
-
 filtered = filtered.merge(cruises, on="cruise_id", how="left")
 filtered = filtered.merge(routes, on="route_id", how="left")
 
 # ==================== SECTION 1: ROUTE REVENUE ====================
-st.subheader("🗺️ Revenue by Route")
+st.subheader("🗺️ Route Revenue Concentration")
 
 route_revenue = (
     filtered
@@ -59,21 +61,26 @@ route_revenue = (
 )
 
 fig_route = px.bar(
-    route_revenue,
-    x="route_name",
-    y="Revenue",
-    color="route_name",
-    text="Revenue",
+    route_revenue.sort_values("Revenue"),
+    x="Revenue",
+    y="route_name",
+    orientation="h",
+    color="Revenue",
+    color_continuous_scale="Blues",
     title="Revenue Contribution by Route"
 )
 
-fig_route.update_traces(textposition="outside")
-
 st.plotly_chart(fig_route, use_container_width=True)
+
+st.caption(
+    "ℹ️ Routes with consistently low revenue contribution may require reduced frequency, "
+    "pricing review, or targeted promotions."
+)
+
 st.divider()
 
 # ==================== SECTION 2: CRUISE OCCUPANCY ====================
-st.subheader("🛳️ Cruise Occupancy")
+st.subheader("🛳️ Capacity Utilization by Cruise")
 
 cruise_perf = (
     filtered
@@ -89,20 +96,24 @@ cruise_perf["Occupancy %"] = (
     cruise_perf["Seats_Booked"] / cruise_perf["total_seats"] * 100
 )
 
+median_occupancy = cruise_perf["Occupancy %"].median()
+median_revenue = cruise_perf["Revenue"].median()
+
 fig_occupancy = px.bar(
     cruise_perf.sort_values("Occupancy %"),
     x="Occupancy %",
     y="cruise_name",
     orientation="h",
     color="Occupancy %",
-    title="Occupancy Percentage by Cruise"
+    color_continuous_scale="Teal",
+    title="Cruise Occupancy — Capacity Utilization Efficiency"
 )
 
 st.plotly_chart(fig_occupancy, use_container_width=True)
 st.divider()
 
-# ==================== SECTION 3: CRUISE PERFORMANCE (REPLACED) ====================
-st.subheader("📊 Cruise Performance Overview")
+# ==================== SECTION 3: REVENUE vs UTILIZATION ====================
+st.subheader("📊 Revenue vs Capacity Utilization (Decision View)")
 
 fig_perf = px.bar(
     cruise_perf.sort_values("Revenue"),
@@ -111,50 +122,41 @@ fig_perf = px.bar(
     orientation="h",
     color="Occupancy %",
     color_continuous_scale="Teal",
-    title="Revenue by Cruise (Color = Occupancy %)",
-    text="Revenue"
-)
-
-fig_perf.update_traces(textposition="outside")
-
-fig_perf.update_layout(
-    xaxis_title="Total Revenue",
-    yaxis_title="Cruise"
+    title="Cruise Revenue with Capacity Utilization Context"
 )
 
 st.plotly_chart(fig_perf, use_container_width=True)
 st.divider()
 
 # ==================== SECTION 4: UNDERPERFORMING CRUISES ====================
-st.subheader("⚠️ Underperforming Cruises")
+st.subheader("⚠️ Underperforming Cruises — Action Required")
 
 underperforming = cruise_perf[
-    (cruise_perf["Occupancy %"] < 50) &
-    (cruise_perf["Revenue"] < cruise_perf["Revenue"].median())
+    (cruise_perf["Occupancy %"] < median_occupancy) &
+    (cruise_perf["Revenue"] < median_revenue)
 ].sort_values("Occupancy %")
 
 if underperforming.empty:
-    st.success("No severely underperforming cruises in this period 🎉")
+    st.success("No underperforming cruises detected for this period 🎉")
 else:
     st.dataframe(
         underperforming[
             ["cruise_name", "Occupancy %", "Revenue", "Seats_Booked"]
         ].style.format({
-            "Occupancy %": "{:.1f}",
+            "Occupancy %": "{:.1f}%",
             "Revenue": "₹ {:,.0f}"
         })
     )
 
-# ==================== INSIGHT PANEL ====================
+# ==================== STRATEGIC INSIGHT ====================
 st.info(
     """
-💡 **How to use this page**
+💡 **Why this matters**
 
-- Compare revenue performance across cruises  
-- Use color intensity to spot low-occupancy risks  
-- Focus promotions on high-occupancy but low-revenue cruises  
-- Review underperformers for pricing or route changes  
+- Low occupancy indicates inefficient capacity usage  
+- Low revenue despite active sailings suggests pricing or demand mismatch  
+- These cruises may require schedule changes, pricing optimization, or route reassessment  
+
+This view supports **capacity planning, route optimization, and promotion strategy decisions**.
 """
 )
-
-
