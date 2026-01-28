@@ -45,14 +45,54 @@ else:
 
 # ==================== APPLY FILTER ====================
 filtered = bookings[bookings["booking_date"] >= start_date].copy()
-filtered = filtered.merge(cruises, on="cruise_id", how="left")
-filtered = filtered.merge(routes, on="route_id", how="left")
 
-# Create readable route label (safe for old & new datasets)
+# ==================== SAFE MERGE: CRUISES ====================
+BOOKING_CRUISE_KEYS = ["cruise_id", "cruise_code"]
+CRUISE_KEYS = ["cruise_id", "cruise_code"]
+
+booking_key = next((k for k in BOOKING_CRUISE_KEYS if k in filtered.columns), None)
+cruise_key = next((k for k in CRUISE_KEYS if k in cruises.columns), None)
+
+if booking_key is None or cruise_key is None:
+    st.error("Cruise key mismatch between bookings and cruises.")
+    st.stop()
+
+filtered[booking_key] = filtered[booking_key].astype(str)
+cruises[cruise_key] = cruises[cruise_key].astype(str)
+
+filtered = filtered.merge(
+    cruises,
+    left_on=booking_key,
+    right_on=cruise_key,
+    how="left"
+)
+
+# ==================== SAFE MERGE: ROUTES ====================
+BOOKING_ROUTE_KEYS = ["route_id", "route_code"]
+ROUTE_KEYS = ["route_id", "route_code"]
+
+booking_route_key = next((k for k in BOOKING_ROUTE_KEYS if k in filtered.columns), None)
+route_key = next((k for k in ROUTE_KEYS if k in routes.columns), None)
+
+if booking_route_key is None or route_key is None:
+    st.error("Route key mismatch between bookings and routes.")
+    st.stop()
+
+filtered[booking_route_key] = filtered[booking_route_key].astype(str)
+routes[route_key] = routes[route_key].astype(str)
+
+filtered = filtered.merge(
+    routes,
+    left_on=booking_route_key,
+    right_on=route_key,
+    how="left"
+)
+
+# ==================== ROUTE LABEL ====================
 if "origin" in filtered.columns and "destination" in filtered.columns:
     filtered["Route"] = filtered["origin"] + " → " + filtered["destination"]
 else:
-    filtered["Route"] = filtered["route_name"]
+    filtered["Route"] = filtered.get("route_name", "Unknown Route")
 
 # ==================== SECTION 1: ROUTE REVENUE ====================
 st.subheader("🗺️ Revenue by Route (Origin → Destination)")
@@ -77,12 +117,6 @@ fig_route = px.bar(
 )
 
 st.plotly_chart(fig_route, use_container_width=True)
-
-st.caption(
-    "ℹ️ Routes with consistently low revenue may require reduced frequency, "
-    "pricing adjustments, or targeted promotions."
-)
-
 st.divider()
 
 # ==================== SECTION 2: CRUISE OCCUPANCY ====================
@@ -91,7 +125,7 @@ st.subheader("🛳️ Cruise Capacity Utilization")
 cruise_perf = (
     filtered
     .groupby(
-        ["cruise_id", "cruise_name", "cruise_type", "duration_nights", "total_seats"],
+        ["cruise_name", "cruise_type", "duration_nights", "total_seats"],
         as_index=False
     )
     .agg(
@@ -119,66 +153,33 @@ fig_occupancy = px.bar(
 )
 
 st.plotly_chart(fig_occupancy, use_container_width=True)
-
-st.caption(
-    "ℹ️ Occupancy is evaluated relative to cruise duration "
-    "(e.g., 3–4 night vs 12–14 night cruises)."
-)
-
 st.divider()
 
-# ==================== SECTION 3: REVENUE vs UTILIZATION ====================
-st.subheader("📊 Revenue with Utilization Context")
-
-fig_perf = px.bar(
-    cruise_perf.sort_values("Revenue"),
-    x="Revenue",
-    y="cruise_name",
-    orientation="h",
-    color="Occupancy %",
-    color_continuous_scale="Teal",
-    title="Revenue by Cruise (Color = Occupancy %)"
-)
-
-st.plotly_chart(fig_perf, use_container_width=True)
-st.divider()
-
-# ==================== SECTION 4: UNDERPERFORMING CRUISES ====================
+# ==================== SECTION 3: UNDERPERFORMING ====================
 st.subheader("⚠️ Underperforming Cruises — Action Required")
 
 underperforming = cruise_perf[
     (cruise_perf["Occupancy %"] < median_occupancy) &
     (cruise_perf["Revenue"] < median_revenue)
-].sort_values("Occupancy %")
+]
 
 if underperforming.empty:
-    st.success("No underperforming cruises detected for this period 🎉")
+    st.success("No underperforming cruises detected 🎉")
 else:
     st.dataframe(
-        underperforming[
-            [
-                "cruise_name",
-                "cruise_type",
-                "duration_nights",
-                "Occupancy %",
-                "Revenue",
-                "Seats_Booked"
-            ]
-        ].style.format({
+        underperforming.style.format({
             "Occupancy %": "{:.1f}%",
             "Revenue": "₹ {:,.0f}"
         })
     )
 
-# ==================== STRATEGIC INSIGHT ====================
+# ==================== INSIGHT ====================
 st.info(
     """
 💡 **Why this matters**
 
-- Route performance reflects real geographic demand (Aswan, Luxor, Cairo)  
-- Cruise duration impacts occupancy and pricing expectations  
-- Low occupancy + low revenue signals inefficient capacity allocation  
-
-This page supports **route optimization, cruise scheduling, and pricing decisions**.
+- Aligns analytics with real iCruiseEgypt routes and cruises  
+- Prevents capacity waste on low-performing itineraries  
+- Supports route planning, pricing, and scheduling decisions  
 """
 )
